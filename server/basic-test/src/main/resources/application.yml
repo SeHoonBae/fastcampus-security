@@ -1,0 +1,11 @@
+server:
+  port: 9050
+
+# application.yml은 1명만 추가가 가능함
+# Config에 inMemory로 User를 등록하면 application.yml에 적힌 내용은 적용되지 않음
+spring:
+  security:
+    user:
+      name: user1
+      password: 1111
+      roles: USER
