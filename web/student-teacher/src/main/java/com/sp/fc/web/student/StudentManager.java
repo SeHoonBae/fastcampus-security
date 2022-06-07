@@ -9,7 +9,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class StudentManager implements AuthenticationProvider, InitializingBean {
@@ -36,12 +38,17 @@ public class StudentManager implements AuthenticationProvider, InitializingBean 
         return authentication == StudentAuthenticationToken.class;
     }
 
+    public List<Student> myStudents(String teacherId){
+        return studentDB.values().stream().filter(s->s.getTeacherId().equals(teacherId))
+                .collect(Collectors.toList());
+    }
+
     @Override
     public void afterPropertiesSet() throws Exception {
         Set.of(
-                new Student("hong", "홍길동", Set.of(new SimpleGrantedAuthority("ROLE_STUDENT"))),
-                new Student("kang", "강아지", Set.of(new SimpleGrantedAuthority("ROLE_STUDENT"))),
-                new Student("rang", "호랑이", Set.of(new SimpleGrantedAuthority("ROLE_STUDENT")))
+                new Student("hong", "홍길동", Set.of(new SimpleGrantedAuthority("ROLE_STUDENT")), "choi"),
+                new Student("kang", "강아지", Set.of(new SimpleGrantedAuthority("ROLE_STUDENT")), "choi"),
+                new Student("rang", "호랑이", Set.of(new SimpleGrantedAuthority("ROLE_STUDENT")), "choi")
         ).forEach(s->
             studentDB.put(s.getId(), s)
         );
