@@ -1,9 +1,12 @@
 package com.sp.fc.web.config;
 
 import com.sp.fc.user.service.SpUserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Required;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.annotation.Persistent;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -14,21 +17,26 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.rememberme.*;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpSessionEvent;
+import javax.sql.DataSource;
 import java.time.LocalDateTime;
 
 @EnableWebSecurity(debug = true)
 @EnableGlobalMethodSecurity(prePostEnabled = true) // prepost annotation을 사용하기 위함. 뒤에서 role에 대해 구현되어 있음.
+@RequiredArgsConstructor
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final SpUserService spUserService;
+    private final DataSource dataSource;
 
-    public SecurityConfig(SpUserService spUserService) {
-        this.spUserService = spUserService;
-    }
+    RememberMeAuthenticationFilter rememberMeAuthenticationFilter;
+    TokenBasedRememberMeServices tokenBasedRememberMeServices;
+    PersistentTokenBasedRememberMeServices persistentTokenBasedRememberMeServices;
+
 
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
@@ -71,6 +79,31 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         });
     }
 
+    @Bean
+    PersistentTokenRepository tokenRepository(){
+        JdbcTokenRepositoryImpl repository = new JdbcTokenRepositoryImpl();
+        repository.setDataSource(dataSource);
+
+        try{
+            repository.removeUserTokens("1");
+        }catch (Exception e){
+            repository.setCreateTableOnStartup(true);
+        }
+
+        return repository;
+    }
+
+    @Bean
+    PersistentTokenBasedRememberMeServices rememberMeServices(){
+        PersistentTokenBasedRememberMeServices service =
+                new PersistentTokenBasedRememberMeServices(
+                        "hello",
+                        spUserService,
+                        tokenRepository()
+                );
+        return service;
+    }
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
@@ -90,6 +123,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .exceptionHandling(error->
                         error.accessDeniedPage("/access-denied")
                 )
+                .rememberMe(r->r.rememberMeServices(rememberMeServices()))
                 ;
     }
 
