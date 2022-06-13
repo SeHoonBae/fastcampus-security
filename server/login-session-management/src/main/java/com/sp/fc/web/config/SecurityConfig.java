@@ -1,6 +1,7 @@
 package com.sp.fc.web.config;
 
 import com.sp.fc.user.service.SpUserService;
+import org.hibernate.Session;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -12,11 +13,17 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
 import org.springframework.security.web.authentication.rememberme.PersistentTokenBasedRememberMeServices;
 import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
+import org.springframework.security.web.authentication.session.ConcurrentSessionControlAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.session.ConcurrentSessionFilter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 
 import javax.servlet.http.HttpSessionEvent;
@@ -26,6 +33,10 @@ import java.time.LocalDateTime;
 @EnableWebSecurity(debug = true)
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    ConcurrentSessionFilter concurrentSessionFilter;
+    SessionAuthenticationStrategy strategy;
+    ConcurrentSessionControlAuthenticationStrategy strategy2;
 
     private final SpUserService spUserService;
     private final DataSource dataSource;
@@ -76,6 +87,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
+    SessionRegistry sessionRegistry(){
+        SessionRegistryImpl registry = new SessionRegistryImpl();
+        return registry;
+    }
+
+    @Bean
     PersistentTokenRepository tokenRepository(){
         JdbcTokenRepositoryImpl repository = new JdbcTokenRepositoryImpl();
         repository.setDataSource(dataSource);
@@ -94,6 +111,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         spUserService,
                         tokenRepository()
                         );
+        service.setAlwaysRemember(true);
         return service;
     }
 
@@ -117,7 +135,15 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         error.accessDeniedPage("/access-denied")
                 )
                 .rememberMe(r->r
+//                        .alwaysRemember(true) // 해당 위치에 alwaysRemember를 해도 적용안됨. 아래에서 rememberService를 구현했기 때문에
                         .rememberMeServices(rememberMeServices())
+                )
+                .sessionManagement(
+                        s->s
+//                                .sessionCreationPolicy(p-> SessionCreationPolicy.ALWAYS) // jwt 토큰을 사용할때는 STATELESS를 사용함
+                            .maximumSessions(1) // 최대 세션 수
+                            .maxSessionsPreventsLogin(false) // 새로운 세션으로 로그인
+                            .expiredUrl("/session-expired") // 세션만료시 이동 경로
                 )
                 ;
     }
@@ -125,6 +151,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     public void configure(WebSecurity web) throws Exception {
         web.ignoring()
+                .antMatchers("/sessions", "/session/expire", "/session-expired")
                 .requestMatchers(
                         PathRequest.toStaticResources().atCommonLocations(),
                         PathRequest.toH2Console()
