@@ -148,7 +148,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         logout.logoutSuccessUrl("/"))
                 .exceptionHandling(error->
                         error
-//                                .accessDeniedPage("/access-denied")
+//                                .accessDeniedPage("/access-denied") // 해당 페이지는 accessDeniedHandler가 구현되어있으면 무시됨.
                                 .accessDeniedHandler(new CustomDeniedHandler())
                                 .authenticationEntryPoint(new CustomEntryPoint())
 
