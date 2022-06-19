@@ -15,8 +15,13 @@ public class WebIntegrationTest {
     @LocalServerPort
     int port;
 
-    public URI uri(String path) throws URISyntaxException {
-        return new URI(format("http://localhost:%d%s", port, path));
+    public URI uri(String path) {
+
+        try {
+            return new URI(format("http://localhost:%d%s", port, path));
+        }catch (Exception e){
+            throw new IllegalArgumentException();
+        }
     }
 
 }
